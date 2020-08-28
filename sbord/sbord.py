@@ -29,13 +29,13 @@ def main(path):
         max_width = st.sidebar.slider("Image width", min_value=-1, max_value=1024)
         max_width = None if max_width <= 0 else max_width
 
-        imagedirs = sorted(os.listdir(os.path.join(path, "images")))
+        imagedirs = natsorted(os.listdir(os.path.join(path, "images")))
         imagedir = st.sidebar.radio("Image directory", imagedirs)
         imagedir_idx = imagedirs.index(imagedir)
         imagedir = imagedirs[imagedir_idx]
         imagedir = os.path.join(path, "images", imagedir)
 
-        fpaths = glob.glob(os.path.join(imagedir, "*.png"))
+        fpaths = natsorted(glob.glob(os.path.join(imagedir, "*.png")))
         fnames = [os.path.split(fpath)[1] for fpath in fpaths]
         matches = [regex.match(fname) for fname in fnames]
         indices = [i for i in range(len(matches)) if matches[i] is not None]
