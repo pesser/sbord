@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+PYTHON=~/miniconda3/envs/sbord/bin/python
+STREAMLIT=~/miniconda3/envs/sbord/bin/streamlit
+SRC=$($PYTHON -c "import os,inspect,sbord; print(os.path.dirname(inspect.getfile(sbord)))")
+$STREAMLIT run "${SRC}/sbord.py" -- $@
