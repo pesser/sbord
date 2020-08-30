@@ -23,6 +23,9 @@ DEFAULT_MODE=0
 
 def main(path):
     st.sidebar.title("sbord")
+    logdir = os.path.realpath(path).split("/")
+    logdir = logdir[-1] if logdir[-1] else logdir[-2]
+    st.sidebar.text(logdir)
     mode = st.sidebar.radio("Mode", ("Images", "Scalars"), index=DEFAULT_MODE)
 
     if mode == "Images":
@@ -104,7 +107,6 @@ def main(path):
         keys = list(df.keys())
         xaxis_options = [None]+keys
         xaxis = st.sidebar.selectbox("x-axis", xaxis_options)
-        xaxis = df[xaxis] if xaxis is not None else np.arange(len(df))
 
         def get_group(k):
             ksplit = k.split("/", 1)
@@ -120,7 +122,7 @@ def main(path):
 
         for k in df:
             if active_groups[get_group(k)]:
-                fig=px.line(df, x=xaxis, y=k)
+                fig=px.line(df[df[k].notnull()], x=xaxis, y=k)
                 st.plotly_chart(fig)
 
         st.sidebar.text("csv data")
