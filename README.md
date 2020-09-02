@@ -18,3 +18,12 @@ To run from anywhere without activating the environment first, add
 ```
 export PATH="${PATH}:~/miniconda3/envs/sbord/bin/sbord"
 ```
+
+# sstat
+
+Same as above. Point first argument to folder containing `free_data.csv`,
+`process_data.csv` and `utilization.csv`. It's convenient to to
+
+```
+alias sstat="~/miniconda3/envs/sbord/bin/sstat <path>"
+```
