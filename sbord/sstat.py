@@ -22,7 +22,7 @@ def main(path):
     data = dict()
     for k in ["free_data.csv", "process_data.csv", "utilization_data.csv"]:
         csv_path = os.path.join(path, k)
-        df = pd.read_csv(csv_path)
+        df = pd.read_csv(csv_path, quotechar="'")
         data[k] = df
 
         st.text(k)
@@ -48,7 +48,9 @@ def main(path):
                 df = df[df["user"]==user]
             st.text("# Processes: {}".format(len(data[k])))
 
-        st.dataframe(df)
+        table_display = {"dataframe": st.dataframe, "table": st.table}
+        method = st.radio("Display method", sorted(table_display.keys()), key=k)
+        table_display[method](df)
 
 
 if __name__ == "__main__":
