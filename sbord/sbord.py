@@ -133,12 +133,12 @@ def main(path):
             if active_groups[get_group(k)]:
                 try:
                     fig = go.Figure()
-                    fig.add_trace(go.Scatter(y=df[k], mode='lines', name=k))
+                    fig.add_trace(go.Scatter(y=df[k], mode='lines', name=k, line=dict(color="lightblue") ))
 
                     data = np.nan_to_num(df[k])
                     ws = min(ws, oddify(len(data)-1))
                     ysm = savgol_filter(data, ws, 3)
-                    fig.add_trace(go.Scatter(y=ysm, mode='lines', name="smoothed {}".format(k)))
+                    fig.add_trace(go.Scatter(y=ysm, mode='lines', line=dict(color="midnightblue")))
 
                     fig.update_layout(title=k)
                     #fig=px.line(df, x=xaxis, y=k)
