@@ -127,27 +127,31 @@ def main(path):
         for g in groups:
             active_groups[g] = st.sidebar.checkbox(g, value=True)
 
-        alpha = st.sidebar.slider("Smoothing", min_value=0.01, max_value=1.0, step=0.01, value=0.4)
-        wss = np.arange(5, 99, 2)
-        ws = wss[int(len(wss)*alpha)]
+        alpha = st.sidebar.slider("Smoothing", min_value=0.0, max_value=1.0, step=0.01, value=0.0)
 
         for k in df:
             if active_groups[get_group(k)]:
-                try:
-                    fig = go.Figure()
-                    fig.add_trace(go.Scatter(y=df[k], mode='lines', name=k, line=dict(color="lightblue") ))
+                if alpha > 0.0:
+                    try:
+                        fig = go.Figure()
+                        fig.add_trace(go.Scatter(y=df[k], mode='lines', name=k, line=dict(color="lightblue") ))
 
-                    data = np.nan_to_num(df[k])
-                    ws = min(ws, oddify(len(data)-1))
-                    ysm = savgol_filter(data, ws, 3)
-                    fig.add_trace(go.Scatter(y=ysm, mode='lines', line=dict(color="midnightblue")))
+                        data = np.nan_to_num(df[k])
 
-                    fig.update_layout(title=k)
-                    #fig=px.line(df[df[k].notnull()], x=xaxis, y=k)
-                    #fig=px.line(df, x=xaxis, y=k)
+                        wss = np.arange(5, 99, 2)
+                        ws = wss[int(len(wss)*alpha)]
+
+                        ws = min(ws, oddify(len(data)-1))
+                        ysm = savgol_filter(data, ws, 3)
+                        fig.add_trace(go.Scatter(y=ysm, mode='lines', line=dict(color="midnightblue")))
+
+                        fig.update_layout(title=k)
+                        st.plotly_chart(fig)
+                    except Exception as e:
+                        print(e)
+                else:
+                    fig=px.line(df[df[k].notnull()], x=xaxis, y=k)
                     st.plotly_chart(fig)
-                except Exception as e:
-                    print(e)
 
         st.sidebar.text("csv data")
         st.sidebar.dataframe(df)
