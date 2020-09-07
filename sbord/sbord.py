@@ -9,7 +9,9 @@ import streamlit as st
 import pandas as pd
 from PIL import Image
 import plotly.express as px
+import plotly.graph_objects as go
 from natsort import natsorted
+from scipy.signal import savgol_filter
 
 # currently assumes to be started with
 # streamlit run sbord.py -- <path/to/log/folder>
@@ -20,6 +22,11 @@ regex = re.compile(r"(.*)_gs-([0-9]+)_e-([0-9]+)_b-([0-9]+).png")
 
 # start displaying images (0) or scalars (1)
 DEFAULT_MODE=0
+
+def oddify(x):
+    if x % 2 == 0:
+        x = x - 1
+    return x
 
 def main(path):
     st.sidebar.title("sbord")
@@ -120,10 +127,27 @@ def main(path):
         for g in groups:
             active_groups[g] = st.sidebar.checkbox(g, value=True)
 
+        alpha = st.sidebar.slider("Smoothing", min_value=0.01, max_value=1.0, step=0.01, value=0.4)
+        wss = np.arange(5, 99, 2)
+        ws = wss[int(len(wss)*alpha)]
+
         for k in df:
             if active_groups[get_group(k)]:
-                fig=px.line(df[df[k].notnull()], x=xaxis, y=k)
-                st.plotly_chart(fig)
+                try:
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(y=df[k], mode='lines', name=k, line=dict(color="lightblue") ))
+
+                    data = np.nan_to_num(df[k])
+                    ws = min(ws, oddify(len(data)-1))
+                    ysm = savgol_filter(data, ws, 3)
+                    fig.add_trace(go.Scatter(y=ysm, mode='lines', line=dict(color="midnightblue")))
+
+                    fig.update_layout(title=k)
+                    #fig=px.line(df[df[k].notnull()], x=xaxis, y=k)
+                    #fig=px.line(df, x=xaxis, y=k)
+                    st.plotly_chart(fig)
+                except Exception as e:
+                    print(e)
 
         st.sidebar.text("csv data")
         st.sidebar.dataframe(df)
