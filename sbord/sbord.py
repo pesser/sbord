@@ -113,7 +113,7 @@ def main(path):
         df = pd.read_csv(csv_path)
 
         keys = list(df.keys())
-        xaxis_options = [None]+keys
+        xaxis_options = ["contiguous", None]+keys
         xaxis = st.sidebar.selectbox("x-axis", xaxis_options)
 
         def get_group(k):
@@ -143,29 +143,32 @@ def main(path):
                                                                 "step selection",
                                                                 ))
 
-        alpha = st.sidebar.slider("Smoothing", min_value=0.0, max_value=1.0, step=0.01, value=0.0)
+        alpha = st.sidebar.slider("Smoothing", min_value=0.0, max_value=1.0, step=0.01, value=0.4)
 
         for k in active_keys:
+            data = df[df[k].notnull()]
+            if xaxis=="contiguous":
+                x = np.arange(len(data))
+            else:
+                x = xaxis
             if alpha > 0.0:
                 try:
                     fig = go.Figure()
-                    fig.add_trace(go.Scatter(y=df[k], mode='lines', name=k, line=dict(color="lightblue") ))
-
-                    data = np.nan_to_num(df[k])
+                    fig.add_trace(go.Scatter(y=data[k], x=x, mode='lines', name=k, line=dict(color="lightblue") ))
 
                     wss = np.arange(5, 99, 2)
                     ws = wss[int(len(wss)*alpha)]
 
                     ws = min(ws, oddify(len(data)-1))
-                    ysm = savgol_filter(data, ws, 3)
-                    fig.add_trace(go.Scatter(y=ysm, mode='lines', line=dict(color="midnightblue")))
+                    ysm = savgol_filter(data[k], ws, 3)
+                    fig.add_trace(go.Scatter(y=ysm, x=x, mode='lines', line=dict(color="midnightblue")))
 
                     fig.update_layout(title=k)
                     st.plotly_chart(fig)
                 except Exception as e:
                     print(e)
             else:
-                fig=px.line(df[df[k].notnull()], x=xaxis, y=k)
+                fig=px.line(data, x=x, y=k)
                 st.plotly_chart(fig)
 
         st.sidebar.text("csv data")
