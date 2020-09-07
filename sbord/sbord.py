@@ -26,7 +26,7 @@ def main(path):
     logdir = os.path.realpath(path).split("/")
     logdir = logdir[-1] if logdir[-1] else logdir[-2]
     st.sidebar.text(logdir)
-    mode = st.sidebar.radio("Mode", ("Images", "Scalars"), index=DEFAULT_MODE)
+    mode = st.sidebar.radio("Mode", ("Images", "Scalars", "Configs"), index=DEFAULT_MODE)
 
     if mode == "Images":
         max_width = st.sidebar.slider("Image width", min_value=-1, max_value=1024)
@@ -127,7 +127,21 @@ def main(path):
 
         st.sidebar.text("csv data")
         st.sidebar.dataframe(df)
-
+    elif mode=="Configs":
+        import yaml
+        cfg_root = os.path.join(path, "configs")
+        cfg_paths = glob.glob(os.path.join(cfg_root, "*.yaml"))
+        cfg_paths = natsorted(cfg_paths)[::-1]
+        cfg_names = [os.path.split(path)[1] for path in cfg_paths]
+        active_names = dict()
+        for name in cfg_names:
+            active_names[name] = st.sidebar.checkbox(name, value=True)
+        for name, path in zip(cfg_names, cfg_paths):
+            if active_names[name]:
+                with open(path, "r") as f:
+                    cfg = yaml.load(f, Loader=yaml.CLoader)
+                st.text(os.path.split(path)[1])
+                st.json(cfg)
 
 
 if __name__ == "__main__":
