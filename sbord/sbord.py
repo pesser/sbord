@@ -4,6 +4,7 @@ import sys
 import random
 import argparse
 import re
+import math
 import numpy as np
 import streamlit as st
 import pandas as pd
@@ -127,31 +128,45 @@ def main(path):
         for g in groups:
             active_groups[g] = st.sidebar.checkbox(g, value=True)
 
+        filter_ = st.sidebar.text_input("Regex Filter")
+        filter_ = re.compile(filter_)
+        active_keys = [k for k in df if active_groups[get_group(k)]]
+        active_keys = [k for k in active_keys if filter_.match(k)]
+        max_plots = st.sidebar.selectbox("Maximum plots per page", (5, 10, 25,
+                                                                    50, 100))
+        pages = max(1, int(math.ceil(len(active_keys) / max_plots)))
+        page = st.sidebar.selectbox("Page", list(range(1, pages+1)))-1
+        active_keys = active_keys[page*max_plots:(page+1)*max_plots]
+
+        idx_selection = st.sidebar.selectbox("Step selection", ("index input",
+                                                                "index slider",
+                                                                "step selection",
+                                                                ))
+
         alpha = st.sidebar.slider("Smoothing", min_value=0.0, max_value=1.0, step=0.01, value=0.0)
 
-        for k in df:
-            if active_groups[get_group(k)]:
-                if alpha > 0.0:
-                    try:
-                        fig = go.Figure()
-                        fig.add_trace(go.Scatter(y=df[k], mode='lines', name=k, line=dict(color="lightblue") ))
+        for k in active_keys:
+            if alpha > 0.0:
+                try:
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(y=df[k], mode='lines', name=k, line=dict(color="lightblue") ))
 
-                        data = np.nan_to_num(df[k])
+                    data = np.nan_to_num(df[k])
 
-                        wss = np.arange(5, 99, 2)
-                        ws = wss[int(len(wss)*alpha)]
+                    wss = np.arange(5, 99, 2)
+                    ws = wss[int(len(wss)*alpha)]
 
-                        ws = min(ws, oddify(len(data)-1))
-                        ysm = savgol_filter(data, ws, 3)
-                        fig.add_trace(go.Scatter(y=ysm, mode='lines', line=dict(color="midnightblue")))
+                    ws = min(ws, oddify(len(data)-1))
+                    ysm = savgol_filter(data, ws, 3)
+                    fig.add_trace(go.Scatter(y=ysm, mode='lines', line=dict(color="midnightblue")))
 
-                        fig.update_layout(title=k)
-                        st.plotly_chart(fig)
-                    except Exception as e:
-                        print(e)
-                else:
-                    fig=px.line(df[df[k].notnull()], x=xaxis, y=k)
+                    fig.update_layout(title=k)
                     st.plotly_chart(fig)
+                except Exception as e:
+                    print(e)
+            else:
+                fig=px.line(df[df[k].notnull()], x=xaxis, y=k)
+                st.plotly_chart(fig)
 
         st.sidebar.text("csv data")
         st.sidebar.dataframe(df)
