@@ -171,8 +171,6 @@ def main(path):
                 fig=px.line(data, x=x, y=k)
                 st.plotly_chart(fig)
 
-        st.sidebar.text("csv data")
-        st.sidebar.dataframe(df)
     elif mode=="Configs":
         import yaml
         cfg_root = os.path.join(path, "configs")
