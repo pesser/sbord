@@ -25,14 +25,15 @@ def main(path):
     #st.sidebar.title("Comput0rZz")
 
     headers = {"process_data.csv": "Processes",
-               "utilization_data.csv": "GPU utilization"}
+               "utilization_data.csv": "GPU utilization",
+               "free_data.csv": "Free GPUs"}
 
     table_display = {"dataframe": st.dataframe, "table": st.table}
     method = st.sidebar.radio("Display method", sorted(table_display.keys()))
 
     data = dict()
-    #for k in ["free_data.csv", "process_data.csv", "utilization_data.csv"]:
-    for k in ["process_data.csv", "utilization_data.csv"]:
+    for k in ["free_data.csv", "process_data.csv", "utilization_data.csv"]:
+    #for k in ["process_data.csv", "utilization_data.csv"]:
         csv_path = os.path.join(path, k)
         df = pd.read_csv(csv_path, quotechar="'")
         data[k] = df
