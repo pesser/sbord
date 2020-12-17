@@ -27,3 +27,13 @@ Same as above. Point first argument to folder containing `free_data.csv`,
 ```
 alias sstat="~/miniconda3/envs/sbord/bin/sstat <path>"
 ```
+
+To adjust streamlit settings directly, run as
+
+```
+streamlit run sboard/sstat.py -- <path/to/queue>
+```
+
+# usrstat
+
+Just a copy of sstat for deployment.
