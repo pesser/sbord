@@ -125,6 +125,9 @@ def main(path):
             st.sidebar.text("Hosts:")
             st.sidebar.code("\n".join(hosts))
 
+        if k == "free_data.csv":
+            df[" "] = len(df)*[" "] # hack to increase width of display
+
         st.subheader(headers[k])
         table_display[method](df)
 

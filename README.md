@@ -31,7 +31,7 @@ alias sstat="~/miniconda3/envs/sbord/bin/sstat <path>"
 To adjust streamlit settings directly, run as
 
 ```
-streamlit run sboard/sstat.py -- <path/to/queue>
+streamlit run sboard/sstat.py --server.port 8080 -- <path/to/queue>
 ```
 
 # usrstat
