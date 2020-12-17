@@ -92,10 +92,10 @@ def main(path):
         st.sidebar.text("Global step: {}".format(global_step))
         entries = df[df["gs"]==global_step]
 
-        st.sidebar.text("Selected")
-        st.sidebar.dataframe(entries)
-        st.sidebar.text("All images")
-        st.sidebar.dataframe(df)
+        #st.sidebar.text("Selected")
+        #st.sidebar.dataframe(entries)
+        #st.sidebar.text("All images")
+        #st.sidebar.dataframe(df)
 
         for name, fpath in zip(entries["names"], entries["fpaths"]):
             I = Image.open(fpath)
@@ -132,7 +132,7 @@ def main(path):
         filter_ = re.compile(filter_)
         active_keys = [k for k in df if active_groups[get_group(k)]]
         active_keys = [k for k in active_keys if filter_.match(k)]
-        max_plots = st.sidebar.selectbox("Maximum plots per page", (5, 10, 25,
+        max_plots = st.sidebar.selectbox("Maximum plots per page", (10, 25,
                                                                     50, 100))
         pages = max(1, int(math.ceil(len(active_keys) / max_plots)))
         page = st.sidebar.selectbox("Page", list(range(1, pages+1)))-1
@@ -151,7 +151,9 @@ def main(path):
                 x = np.arange(len(data))
             else:
                 x = xaxis
+            vanilla = True
             if alpha > 0.0:
+                vanilla = False
                 try:
                     fig = go.Figure()
                     fig.add_trace(go.Scatter(y=data[k], x=x, mode='lines', name=k, line=dict(color="lightblue") ))
@@ -166,8 +168,10 @@ def main(path):
                     fig.update_layout(title=k)
                     st.plotly_chart(fig)
                 except Exception as e:
+                    vanilla = True
                     print(e)
-            else:
+
+            if vanilla:
                 fig=px.line(data, x=x, y=k)
                 st.plotly_chart(fig)
 
