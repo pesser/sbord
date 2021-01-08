@@ -185,7 +185,10 @@ def main(path):
         for name, path in zip(cfg_names, cfg_paths):
             if active_names[name]:
                 with open(path, "r") as f:
-                    cfg = yaml.load(f, Loader=yaml.CLoader)
+                    try:
+                        cfg = yaml.load(f, Loader=yaml.CLoader)
+                    except AttributeError:
+                        cfg = yaml.load(f)
                 st.text(os.path.split(path)[1])
                 st.json(cfg)
 
