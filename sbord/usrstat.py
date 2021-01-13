@@ -125,6 +125,21 @@ def main(path):
             st.sidebar.text("Hosts:")
             st.sidebar.code("\n".join(hosts))
 
+            hosts_file = os.path.join(path, "hosts.txt")
+            if os.path.exists(hosts_file):
+                with open(hosts_file, "r") as f:
+                    expected_hosts = f.read().splitlines()
+                expected_hosts = [line.split(" ")[0] for line in expected_hosts]
+
+                # get unfiltered hosts again
+                available_hosts = pd.read_csv(os.path.join(path, "utilization_data.csv"), quotechar="'")
+                available_hosts = set(available_hosts["hostname"].unique())
+
+                missing_hosts = [h for h in expected_hosts if not h in available_hosts]
+                if len(missing_hosts) > 0:
+                    st.sidebar.text("Problematic Hosts:")
+                    st.sidebar.code("\n".join(missing_hosts))
+
         if k == "free_data.csv":
             df[" "] = len(df)*[" "] # hack to increase width of display
 
