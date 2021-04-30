@@ -1,4 +1,13 @@
+# sbord & sstat
+
+Some streamlit scripts that we use to display our training logs (`sbord`) and
+to monitor our servers (`sstat`). Note that the latter requires monitoring data
+in some quite specific and undocumented format so it is probably not that re-usable.
+
 # sbord
+
+Run directly as `streamlit run sbord.py -- <path/to/log/folder>` or install and
+run via
 
 ```
 conda env create -f environment.yaml
