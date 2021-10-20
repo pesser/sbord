@@ -39,8 +39,10 @@ def main(paths):
         for p in paths:
             active_paths[p] = st.sidebar.checkbox(p, value=True)
     else:
-        path_idx = st.sidebar.radio("logdir", list(range(len(paths))), index=0,
-        format_func=lambda idx: paths[idx])
+        if len(paths) == 1:
+            path_idx = 0
+        else:
+            path_idx = st.sidebar.radio("logdir", list(range(len(paths))), index=0, format_func=lambda idx: paths[idx])
         path = paths[path_idx]
         logdir = os.path.realpath(path).split("/")
         logdir = logdir[-1] if logdir[-1] else logdir[-2]
