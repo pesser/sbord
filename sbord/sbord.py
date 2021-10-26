@@ -34,11 +34,7 @@ def main(paths):
     logdir_text = st.sidebar.empty()
     mode = st.sidebar.radio("Mode", ("Images", "Scalars", "Compare", "Configs"), index=DEFAULT_MODE)
 
-    if mode == "Compare":
-        active_paths = dict()
-        for p in paths:
-            active_paths[p] = st.sidebar.checkbox(p, value=True)
-    else:
+    if mode != "Compare":
         if len(paths) == 1:
             path_idx = 0
         else:
@@ -188,30 +184,43 @@ def main(paths):
                 st.plotly_chart(fig)
 
     elif mode=="Compare":
-        paths = [p for p in paths if active_paths[p]]
         dfs = []
+        dfs_container = []
+        st.header("Choose Variables from logs")
         for p in paths:
             csv_root = os.path.join(p, "testtube")
             csv_paths = glob.glob(os.path.join(csv_root, "**/metrics.csv"))
             csv_paths = natsorted(csv_paths)
             if len(csv_paths) == 0:
                 continue
-            elif len(csv_paths) == 1:
+
+            st.subheader(os.path.split(p)[1])
+            if not st.checkbox("active?", value=True, key=p+"active"+"checkbox"):
+                continue
+
+            if len(csv_paths) == 1:
                 csv_idx = 0
             else:
                 short_csv_paths = ["/".join(csv_path.split("/")[-2:]) for csv_path in csv_paths]
-                csv_path = st.sidebar.radio(p, short_csv_paths, index=len(short_csv_paths)-1)
+                csv_path = st.radio(p, short_csv_paths, index=len(short_csv_paths)-1)
                 csv_idx = short_csv_paths.index(csv_path)
+
+            dfs_container.append(st.container())
 
             csv_path = csv_paths[csv_idx]
             df = pd.read_csv(csv_path)
             dfs.append(df)
+
+        st.header("Settings")
+        fig = go.Figure()
 
         keys = [set(df.keys()) for df in dfs]
         xaxis_keys = list(set.intersection(*keys))
         keys = list(set.union(*keys))
         xaxis_options = ["contiguous", None]+xaxis_keys
         xaxis = st.selectbox("x-axis", xaxis_options)
+        xmin, xmax = np.inf, -np.inf
+        ymin, ymax = np.inf, -np.inf
 
         def get_group(k):
             ksplit = k.split("/", 1)
@@ -231,23 +240,49 @@ def main(paths):
         active_keys = [k for k in keys if active_groups[get_group(k)]]
         active_keys = [k for k in active_keys if filter_.match(k)]
 
-        st.header("Choose Variables from logs")
-        fig = go.Figure()
-        for i, df in enumerate(dfs):
-            st.subheader(paths[i])
-            name = st.text_input("Name for plot legend:", paths[i])
-            name_leg = f"{name}: " if len(dfs) > 1 else ""
-            for key in df.keys():
-                if key not in active_keys: continue
-                active = st.checkbox(key, value=False, key=paths[i]+key)
-                if not active: continue
+        for i, (df, container) in enumerate(zip(dfs, dfs_container)):
+            with container:
+                name = st.text_input("Name for plot legend:", os.path.split(paths[i])[1])
+                name_leg = f"{name}: " if len(dfs) > 1 else ""
+                for key in df.keys():
+                    if key not in active_keys:
+                        continue
 
-                data = df[df[key].notnull()]
-                if xaxis == "contiguous":
-                    x = np.arange(len(data))
-                else:
-                    x = data[xaxis]
-                fig.add_trace(go.Scatter(y=data[key], x=x, mode="lines", name=f"{name_leg}{key}     "))
+                    active = st.checkbox(key, value=False, key=paths[i]+key)
+                    if not active:
+                        continue
+
+                    data = df[df[key].notnull()]
+                    if xaxis == "contiguous":
+                        x = np.arange(len(data))
+                        xmax = max(xmax, x[-1])
+                        xmin = min(xmin, x[0])
+                    else:
+                        x = data[xaxis]
+                        xmax = max(xmax, x.max())
+                        xmin = min(xmin, x.min())
+                    fig.add_trace(go.Scatter(y=data[key], x=x, mode="lines", name=f"{name_leg}{key}     "))
+                    ymax = max(ymax, data[key].max())
+                    ymin = min(ymin, data[key].min())
+
+        colx, coly = st.columns(2)
+
+        with colx:
+            xmin, xmax = float(xmin), float(xmax)
+            if xmin ==  np.inf: xmin = None
+            if xmax == -np.inf: xmax = None
+            xmin = st.number_input("X-min", xmin, xmax)
+            xmax = st.number_input("X-max", xmin, xmax, value=xmax if xmax is not None else xmin)
+
+        with coly:
+            ymin, ymax = float(ymin), float(ymax)
+            if ymin ==  np.inf: ymin = None
+            if ymax == -np.inf: ymax = None
+            ymin = st.number_input("Y-min", ymin, ymax)
+            ymax = st.number_input("Y-max", ymin, ymax, value=ymax if ymax is not None else ymin)
+
+        fig.update_layout(xaxis_range=[xmin, xmax])
+        fig.update_layout(yaxis_range=[ymin, ymax])
 
         st.header("Plot")
         name = st.text_input("Name plot", "")
