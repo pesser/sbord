@@ -185,7 +185,7 @@ def main(paths):
 
     elif mode=="Compare":
         dfs = []
-        dfs_container = []
+        dfs_extra = []
         st.header("Choose Variables from logs")
         for p in paths:
             csv_root = os.path.join(p, "testtube")
@@ -205,11 +205,10 @@ def main(paths):
                 csv_path = st.radio(p, short_csv_paths, index=len(short_csv_paths)-1)
                 csv_idx = short_csv_paths.index(csv_path)
 
-            dfs_container.append(st.container())
-
             csv_path = csv_paths[csv_idx]
             df = pd.read_csv(csv_path)
             dfs.append(df)
+            dfs_extra.append((p, st.container()))
 
         st.header("Settings")
         fig = go.Figure()
@@ -240,15 +239,15 @@ def main(paths):
         active_keys = [k for k in keys if active_groups[get_group(k)]]
         active_keys = [k for k in active_keys if filter_.match(k)]
 
-        for i, (df, container) in enumerate(zip(dfs, dfs_container)):
+        for df, (p,  container) in zip(dfs, dfs_extra):
             with container:
-                name = st.text_input("Name for plot legend:", os.path.split(paths[i])[1])
+                name = st.text_input("Name for plot legend:", os.path.split(p)[1])
                 name_leg = f"{name}: " if len(dfs) > 1 else ""
                 for key in df.keys():
                     if key not in active_keys:
                         continue
 
-                    active = st.checkbox(key, value=False, key=paths[i]+key)
+                    active = st.checkbox(key, value=False, key=p+key)
                     if not active:
                         continue
 
