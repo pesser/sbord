@@ -29,12 +29,24 @@ def oddify(x):
         x = x - 1
     return x
 
-def main(path):
+def main(paths):
     st.sidebar.title("sbord")
-    logdir = os.path.realpath(path).split("/")
-    logdir = logdir[-1] if logdir[-1] else logdir[-2]
-    st.sidebar.text(logdir)
-    mode = st.sidebar.radio("Mode", ("Images", "Scalars", "Configs"), index=DEFAULT_MODE)
+    logdir_text = st.sidebar.empty()
+    mode = st.sidebar.radio("Mode", ("Images", "Scalars", "Compare", "Configs"), index=DEFAULT_MODE)
+
+    if mode == "Compare":
+        active_paths = dict()
+        for p in paths:
+            active_paths[p] = st.sidebar.checkbox(p, value=True)
+    else:
+        if len(paths) == 1:
+            path_idx = 0
+        else:
+            path_idx = st.sidebar.radio("logdir", list(range(len(paths))), index=0, format_func=lambda idx: paths[idx])
+        path = paths[path_idx]
+        logdir = os.path.realpath(path).split("/")
+        logdir = logdir[-1] if logdir[-1] else logdir[-2]
+        logdir_text.text(logdir)
 
     if mode == "Images":
         max_width = st.sidebar.slider("Image width", min_value=-1, max_value=1024)
@@ -92,10 +104,10 @@ def main(path):
         st.sidebar.text("Global step: {}".format(global_step))
         entries = df[df["gs"]==global_step]
 
-        st.sidebar.text("Selected")
-        st.sidebar.dataframe(entries)
-        st.sidebar.text("All images")
-        st.sidebar.dataframe(df)
+        #st.sidebar.text("Selected")
+        #st.sidebar.dataframe(entries)
+        #st.sidebar.text("All images")
+        #st.sidebar.dataframe(df)
 
         for name, fpath in zip(entries["names"], entries["fpaths"]):
             I = Image.open(fpath)
@@ -132,7 +144,7 @@ def main(path):
         filter_ = re.compile(filter_)
         active_keys = [k for k in df if active_groups[get_group(k)]]
         active_keys = [k for k in active_keys if filter_.match(k)]
-        max_plots = st.sidebar.selectbox("Maximum plots per page", (5, 10, 25,
+        max_plots = st.sidebar.selectbox("Maximum plots per page", (10, 25,
                                                                     50, 100))
         pages = max(1, int(math.ceil(len(active_keys) / max_plots)))
         page = st.sidebar.selectbox("Page", list(range(1, pages+1)))-1
@@ -151,7 +163,9 @@ def main(path):
                 x = np.arange(len(data))
             else:
                 x = xaxis
+            vanilla = True
             if alpha > 0.0:
+                vanilla = False
                 try:
                     fig = go.Figure()
                     fig.add_trace(go.Scatter(y=data[k], x=x, mode='lines', name=k, line=dict(color="lightblue") ))
@@ -166,13 +180,88 @@ def main(path):
                     fig.update_layout(title=k)
                     st.plotly_chart(fig)
                 except Exception as e:
+                    vanilla = True
                     print(e)
-            else:
+
+            if vanilla:
                 fig=px.line(data, x=x, y=k)
                 st.plotly_chart(fig)
 
-        st.sidebar.text("csv data")
-        st.sidebar.dataframe(df)
+    elif mode=="Compare":
+        paths = [p for p in paths if active_paths[p]]
+        dfs = []
+        for p in paths:
+            csv_root = os.path.join(p, "testtube")
+            csv_paths = glob.glob(os.path.join(csv_root, "**/metrics.csv"))
+            csv_paths = natsorted(csv_paths)
+            if len(csv_paths) == 0:
+                continue
+            elif len(csv_paths) == 1:
+                csv_idx = 0
+            else:
+                short_csv_paths = ["/".join(csv_path.split("/")[-2:]) for csv_path in csv_paths]
+                csv_path = st.sidebar.radio(p, short_csv_paths, index=len(short_csv_paths)-1)
+                csv_idx = short_csv_paths.index(csv_path)
+
+            csv_path = csv_paths[csv_idx]
+            df = pd.read_csv(csv_path)
+            dfs.append(df)
+
+        keys = [set(df.keys()) for df in dfs]
+        xaxis_keys = list(set.intersection(*keys))
+        keys = list(set.union(*keys))
+        xaxis_options = ["contiguous", None]+xaxis_keys
+        xaxis = st.selectbox("x-axis", xaxis_options)
+
+        def get_group(k):
+            ksplit = k.split("/", 1)
+            if len(ksplit) == 1:
+                return "ungrouped"
+            return ksplit[0]
+
+        groups = sorted(set([get_group(k) for k in keys]))
+        active_groups = dict()
+        st.sidebar.text("Groups")
+        for g in groups:
+            default = (g != "ungrouped")
+            active_groups[g] = st.sidebar.checkbox(g, value=default)
+
+        filter_ = st.sidebar.text_input("Regex Filter")
+        filter_ = re.compile(filter_)
+        active_keys = [k for k in keys if active_groups[get_group(k)]]
+        active_keys = [k for k in active_keys if filter_.match(k)]
+
+        st.header("Choose Variables from logs")
+        fig = go.Figure()
+        for i, df in enumerate(dfs):
+            st.subheader(paths[i])
+            name = st.text_input("Name for plot legend:", paths[i])
+            name_leg = f"{name}: " if len(dfs) > 1 else ""
+            for key in df.keys():
+                if key not in active_keys: continue
+                active = st.checkbox(key, value=False, key=paths[i]+key)
+                if not active: continue
+
+                data = df[df[key].notnull()]
+                if xaxis == "contiguous":
+                    x = np.arange(len(data))
+                else:
+                    x = data[xaxis]
+                fig.add_trace(go.Scatter(y=data[key], x=x, mode="lines", name=f"{name_leg}{key}     "))
+
+        st.header("Plot")
+        name = st.text_input("Name plot", "")
+        config = {
+          'toImageButtonOptions': {
+            'format': 'png', # one of png, svg, jpeg, webp
+            'filename': name if name else 'plot',
+            'height': 1000,
+            'width': 1400,
+            'scale': 1 # Multiply title/legend/axis/canvas sizes by this factor
+          }
+        }
+        fig.update_layout(title=name, xaxis_title=xaxis, font={"size":18})
+        st.plotly_chart(fig, config=config)
     elif mode=="Configs":
         import yaml
         cfg_root = os.path.join(path, "configs")
@@ -196,7 +285,7 @@ def main(path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='The streamlit based alternative to tensorboard.')
 
-    parser.add_argument('path', default=".", nargs="?")
+    parser.add_argument('paths', default=".", nargs="*")
     args = parser.parse_args()
 
-    main(args.path)
+    main(args.paths)

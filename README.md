@@ -1,4 +1,13 @@
+# sbord & sstat
+
+Some streamlit scripts that we use to display our training logs (`sbord`) and
+to monitor our servers (`sstat`). Note that the latter requires monitoring data
+in some quite specific and undocumented format so it is probably not that re-usable.
+
 # sbord
+
+Run directly as `streamlit run sbord.py -- <path/to/log/folder>` or install and
+run via
 
 ```
 conda env create -f environment.yaml
@@ -27,3 +36,13 @@ Same as above. Point first argument to folder containing `free_data.csv`,
 ```
 alias sstat="~/miniconda3/envs/sbord/bin/sstat <path>"
 ```
+
+To adjust streamlit settings directly, run as
+
+```
+streamlit run sboard/sstat.py --server.port 8080 -- <path/to/queue>
+```
+
+# usrstat
+
+Just a copy of sstat for deployment.
