@@ -24,10 +24,18 @@ regex = re.compile(r"(.*)_gs-([0-9]+)_e-([0-9]+)_b-([0-9]+).png")
 # start displaying images (0) or scalars (1)
 DEFAULT_MODE=0
 
+
+
+@st.experimental_memo
+def load_df(csv_path):
+    return pd.read_csv(csv_path)
+
+
 def oddify(x):
     if x % 2 == 0:
         x = x - 1
     return x
+
 
 def main(paths):
     st.sidebar.title("sbord")
@@ -118,7 +126,7 @@ def main(paths):
         csv_idx = short_csv_paths.index(csv_path)
         csv_path = csv_paths[csv_idx]
 
-        df = pd.read_csv(csv_path)
+        df = load_df(csv_path)
 
         keys = list(df.keys())
         xaxis_options = ["contiguous", None]+keys
@@ -206,7 +214,7 @@ def main(paths):
                 csv_idx = short_csv_paths.index(csv_path)
 
             csv_path = csv_paths[csv_idx]
-            df = pd.read_csv(csv_path)
+            df = load_df(csv_path)
             dfs.append(df)
             dfs_extra.append((p, st.container()))
 
@@ -218,8 +226,6 @@ def main(paths):
         keys = list(set.union(*keys))
         xaxis_options = ["contiguous", None]+xaxis_keys
         xaxis = st.selectbox("x-axis", xaxis_options)
-        xmin, xmax = np.inf, -np.inf
-        ymin, ymax = np.inf, -np.inf
 
         def get_group(k):
             ksplit = k.split("/", 1)
@@ -254,43 +260,18 @@ def main(paths):
                     data = df[df[key].notnull()]
                     if xaxis == "contiguous":
                         x = np.arange(len(data))
-                        xmax = max(xmax, x[-1])
-                        xmin = min(xmin, x[0])
                     else:
                         x = data[xaxis]
-                        xmax = max(xmax, x.max())
-                        xmin = min(xmin, x.min())
-                    fig.add_trace(go.Scatter(y=data[key], x=x, mode="lines", name=f"{name_leg}{key}     "))
-                    ymax = max(ymax, data[key].max())
-                    ymin = min(ymin, data[key].min())
-
-        colx, coly = st.columns(2)
-
-        with colx:
-            xmin, xmax = float(xmin), float(xmax)
-            if xmin ==  np.inf: xmin = None
-            if xmax == -np.inf: xmax = None
-            xmin = st.number_input("X-min", xmin, xmax)
-            xmax = st.number_input("X-max", xmin, xmax, value=xmax if xmax is not None else xmin)
-
-        with coly:
-            ymin, ymax = float(ymin), float(ymax)
-            if ymin ==  np.inf: ymin = None
-            if ymax == -np.inf: ymax = None
-            ymin = st.number_input("Y-min", ymin, ymax)
-            ymax = st.number_input("Y-max", ymin, ymax, value=ymax if ymax is not None else ymin)
-
-        fig.update_layout(xaxis_range=[xmin, xmax])
-        fig.update_layout(yaxis_range=[ymin, ymax])
+                    fig.add_trace(go.Scatter(y=data[key], x=x, mode="lines", name=f"{name_leg}{key}"))
 
         st.header("Plot")
         name = st.text_input("Name plot", "")
         config = {
           'toImageButtonOptions': {
-            'format': 'png', # one of png, svg, jpeg, webp
+            'format': 'svg', # one of png, svg, jpeg, webp
             'filename': name if name else 'plot',
-            'height': 1000,
-            'width': 1400,
+            'height': None,
+            'width': None,
             'scale': 1 # Multiply title/legend/axis/canvas sizes by this factor
           }
         }
@@ -319,4 +300,6 @@ if __name__ == "__main__":
     parser.add_argument('paths', default=".", nargs="*")
     args = parser.parse_args()
 
-    main(args.paths)
+    # remove trailing "/"
+    paths = [p[:-len(os.sep)] if p.endswith(os.sep) else p for p in args.paths]
+    main(paths)
