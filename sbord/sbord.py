@@ -175,7 +175,7 @@ def main(paths):
                     fig.add_trace(go.Scatter(y=data[k], x=x, mode='lines', name=k, line=dict(color="lightblue") ))
 
                     wss = np.arange(5, 99, 2)
-                    ws = wss[int(len(wss)*alpha)]
+                    ws = wss[int((len(wss)-1)*alpha)]
 
                     ws = min(ws, oddify(len(data)-1))
                     ysm = savgol_filter(data[k], ws, 3)
@@ -221,6 +221,7 @@ def main(paths):
         st.header("Settings")
         fig = go.Figure()
 
+        alpha = st.slider("Smoothing", min_value=0.0, max_value=1.0, step=0.01, value=0.0)
         keys = [set(df.keys()) for df in dfs]
         xaxis_keys = list(set.intersection(*keys))
         keys = list(set.union(*keys))
@@ -261,8 +262,26 @@ def main(paths):
                     if xaxis == "contiguous":
                         x = np.arange(len(data))
                     else:
-                        x = data[xaxis]
-                    fig.add_trace(go.Scatter(y=data[key], x=x, mode="lines", name=f"{name_leg}{key}"))
+                        if pd.api.types.is_numeric_dtype(data[xaxis]):
+                            data = data.copy() # avoid error when writing to
+                            # dataframe created by slicing an other dataframe
+                            data["counts"] = data.groupby(xaxis).cumcount()
+                            x = data.groupby(xaxis).counts.apply(lambda d: d/(d.max()+1))
+                            x = x.reset_index(level=0, drop=True) + data[xaxis]
+                        else:
+                            x = data[xaxis]
+
+                    if alpha == 0.0:
+                        fig.add_trace(go.Scatter(y=data[key], x=x, mode="lines",
+                                                 name=f"{name_leg}{key}"))
+                    else:
+                        wss = np.arange(5, 99, 2)
+                        ws = wss[int((len(wss)-1)*alpha)]
+
+                        ws = min(ws, oddify(len(data)-1))
+                        ysm = savgol_filter(data[key], ws, 3)
+                        fig.add_trace(go.Scatter(y=ysm, x=x, mode='lines',
+                                                 name=f"{name_leg}{key} (smoothed)"))
 
         st.header("Plot")
         name = st.text_input("Name plot", "")
