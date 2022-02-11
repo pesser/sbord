@@ -119,7 +119,6 @@ def main(paths):
 
     elif mode == 'Videos':
         imagedirs = natsorted(os.listdir(os.path.join(path, "images")))
-        print(imagedirs)
         if all(map(lambda x: len(glob.glob(os.path.join(path,'images',x,'*.mp4')))== 0,imagedirs)):
             st.info('No videos logged for this run')
         else:
