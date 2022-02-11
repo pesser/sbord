@@ -14,7 +14,6 @@ import plotly.graph_objects as go
 from natsort import natsorted
 from scipy.signal import savgol_filter
 import subprocess
-import cv2
 
 # currently assumes to be started with
 # streamlit run sbord.py -- <path/to/log/folder>
