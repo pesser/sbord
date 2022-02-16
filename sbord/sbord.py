@@ -118,13 +118,11 @@ def main(paths):
 
     elif mode == 'Videos':
         imagedirs = natsorted(os.listdir(os.path.join(path, "images")))
-        if all(map(lambda x: len(glob.glob(os.path.join(path,'images',x,'*.mp4')))== 0,imagedirs)):
+        imagedirs = [imagedir for imagedir in imagedirs if
+                     len(glob.glob(os.path.join(path, 'images', imagedir, '*.mp4'))) > 0]
+        if len(imagedirs) == 0:
             st.info('No videos logged for this run')
         else:
-
-            # max_width = st.sidebar.slider("Spatial width", min_value=-1, max_value=1024)
-            # max_width = None if max_width <= 0 else max_width
-            imagedirs = natsorted(os.listdir(os.path.join(path, "images")))
             imagedir = st.sidebar.radio("Video directory", imagedirs)
             imagedir_idx = imagedirs.index(imagedir)
             imagedir = imagedirs[imagedir_idx]
@@ -176,10 +174,12 @@ def main(paths):
             st.sidebar.text("Global step: {}".format(global_step))
             entries = df[df["gs"] == global_step]
 
+            reencode = st.sidebar.checkbox("Re-encode videos", value=False)
             for name, fpath in zip(entries["names"], entries["fpaths"]):
-                # correct video codec for streamlit cf https://github.com/streamlit/streamlit/issues/1580
-                rc = f'ffmpeg -y -hide_banner -loglevel error  -i {fpath} -vcodec libx264 {fpath}'
-                subprocess.run(rc,shell=True)
+                if reencode:
+                    # correct video codec for streamlit cf https://github.com/streamlit/streamlit/issues/1580
+                    rc = f'ffmpeg -y -hide_banner -loglevel error  -i {fpath} -vcodec libx264 {fpath}'
+                    subprocess.run(rc,shell=True)
                 st.text(name)
                 st.video(fpath)
 
