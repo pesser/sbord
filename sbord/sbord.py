@@ -50,6 +50,7 @@ def main(paths):
         logdir_text.text(logdir)
 
     if mode == "Images":
+        ignore_alpha = st.sidebar.checkbox("Ignore alpha", value=False)
         max_width = st.sidebar.slider("Image width", min_value=-1, max_value=1024)
         max_width = None if max_width <= 0 else max_width
 
@@ -113,6 +114,8 @@ def main(paths):
         for name, fpath in zip(entries["names"], entries["fpaths"]):
 
             I = Image.open(fpath)
+            if ignore_alpha and np.array(I).shape[-1]==4:
+                I = Image.fromarray(np.array(I)[:, :, :3])
             st.text(name)
             st.image(I, width=max_width)
 
