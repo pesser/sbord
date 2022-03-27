@@ -181,8 +181,13 @@ def main(paths):
             for name, fpath in zip(entries["names"], entries["fpaths"]):
                 if reencode:
                     # correct video codec for streamlit cf https://github.com/streamlit/streamlit/issues/1580
-                    rc = f'ffmpeg -y -hide_banner -loglevel error  -i {fpath} -vcodec libx264 {fpath}'
+                    basename = '/'.join(fpath.split('/')[:-1])
+                    f_name = fpath.split('/')[-1]
+                    newpath = f'{os.path.join(basename,f_name.split(".")[0])}_.{fpath.split(".")[-1]}'
+                    rc = f'ffmpeg -y -hide_banner -loglevel error  -i {fpath} -vcodec libx264 '+newpath
                     subprocess.run(rc,shell=True)
+                    mvc = f'mv {newpath} {fpath}'
+                    subprocess.run(mvc,shell=True)
                 st.text(name)
                 st.video(fpath)
 
