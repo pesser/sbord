@@ -118,6 +118,15 @@ def main(paths):
                 I = Image.fromarray(np.array(I)[:, :, :3])
             st.text(name)
             st.image(I, width=max_width)
+            # download original
+            ext = os.path.splitext(fpath)[1]
+            with open(fpath, "rb") as f:
+                st.download_button(
+                        "Original Image",
+                        data=f,
+                        file_name=os.path.basename(fpath),
+                        mime=f"image/{ext}",
+                        )
 
     elif mode == 'Videos':
         imagedirs = natsorted(os.listdir(os.path.join(path, "images")))
