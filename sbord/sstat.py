@@ -9,6 +9,7 @@ import streamlit as st
 import pandas as pd
 from PIL import Image
 import plotly.express as px
+import plotly.graph_objects as go
 from natsort import natsorted
 
 st.beta_set_page_config(
@@ -37,7 +38,6 @@ except ValueError:
 process_keys = ["hostname", "index", "command", "used_gpu_memory",
                 "memory.total", "memory.free",
                 "utilization.gpu", "user"]
-
 
 def main(path):
     headers = {"process_data.csv": "Processes",
@@ -127,6 +127,9 @@ def main(path):
 
         st.subheader(headers[k])
         table_display[method](df)
+
+    if st.checkbox("Show History"):
+        history(HISTORY_PATH)
 
 
 if __name__ == "__main__":

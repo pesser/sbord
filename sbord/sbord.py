@@ -13,13 +13,14 @@ import plotly.express as px
 import plotly.graph_objects as go
 from natsort import natsorted
 from scipy.signal import savgol_filter
+import subprocess
 
 # currently assumes to be started with
 # streamlit run sbord.py -- <path/to/log/folder>
 
 # parses filenames of the form
 # name_gs-001_e-0_b-112.png
-regex = re.compile(r"(.*)_gs-([0-9]+)_e-([0-9]+)_b-([0-9]+).png")
+regex = re.compile(r"(.*)_gs-([0-9]+)_e-([0-9]+)_b-([0-9]+).\b(png|mp4)\b")
 
 # start displaying images (0) or scalars (1)
 DEFAULT_MODE=0
@@ -40,7 +41,7 @@ def oddify(x):
 def main(paths):
     st.sidebar.title("sbord")
     logdir_text = st.sidebar.empty()
-    mode = st.sidebar.radio("Mode", ("Images", "Scalars", "Compare", "Configs"), index=DEFAULT_MODE)
+    mode = st.sidebar.radio("Mode", ("Images", "Scalars", "Compare", "Configs",'Videos'), index=DEFAULT_MODE)
 
     if mode != "Compare":
         if len(paths) == 1:
@@ -53,6 +54,7 @@ def main(paths):
         logdir_text.text(logdir)
 
     if mode == "Images":
+        ignore_alpha = st.sidebar.checkbox("Ignore alpha", value=False)
         max_width = st.sidebar.slider("Image width", min_value=-1, max_value=1024)
         max_width = None if max_width <= 0 else max_width
 
@@ -114,9 +116,95 @@ def main(paths):
         #st.sidebar.dataframe(df)
 
         for name, fpath in zip(entries["names"], entries["fpaths"]):
+
             I = Image.open(fpath)
+            if ignore_alpha and np.array(I).shape[-1]==4:
+                I = Image.fromarray(np.array(I)[:, :, :3])
             st.text(name)
             st.image(I, width=max_width)
+            # download original
+            ext = os.path.splitext(fpath)[1]
+            with open(fpath, "rb") as f:
+                st.download_button(
+                        "Original Image",
+                        data=f,
+                        file_name=os.path.basename(fpath),
+                        mime=f"image/{ext}",
+                        )
+
+    elif mode == 'Videos':
+        imagedirs = natsorted(os.listdir(os.path.join(path, "images")))
+        imagedirs = [imagedir for imagedir in imagedirs if
+                     len(glob.glob(os.path.join(path, 'images', imagedir, '*.mp4'))) > 0]
+        if len(imagedirs) == 0:
+            st.info('No videos logged for this run')
+        else:
+            imagedir = st.sidebar.radio("Video directory", imagedirs)
+            imagedir_idx = imagedirs.index(imagedir)
+            imagedir = imagedirs[imagedir_idx]
+            imagedir = os.path.join(path, "images", imagedir)
+
+            fpaths = natsorted(glob.glob(os.path.join(imagedir, "*.mp4")))
+            fnames = [os.path.split(fpath)[1] for fpath in fpaths]
+            matches = [regex.match(fname) for fname in fnames]
+            indices = [i for i in range(len(matches)) if matches[i] is not None]
+
+            fpaths = [fpaths[i] for i in indices]
+            fnames = [fnames[i] for i in indices]
+            matches = [matches[i] for i in indices]
+            names = [match.group(1) for match in matches]
+            gs = [int(match.group(2)) for match in matches]
+            epoch = [int(match.group(3)) for match in matches]
+            batch = [int(match.group(4)) for match in matches]
+
+            df = pd.DataFrame({
+                "gs": gs,
+                "epoch": epoch,
+                "batch": batch,
+                "names": names,
+                "fnames": fnames,
+                "fpaths": fpaths,
+            })
+
+
+            steps = df["gs"].unique()
+            idx_selection = st.sidebar.selectbox("Step selection", ("index input",
+                                                                    "index slider",
+                                                                    "step selection",
+                                                                    ))
+            if idx_selection == "index input":
+                idx = st.sidebar.number_input("Global step idx",
+                                              min_value=0,
+                                              max_value=len(steps) - 1,
+                                              value=len(steps) - 1)
+                global_step = steps[idx]
+            elif idx_selection == "index slider":
+                idx = st.sidebar.slider("Global step idx",
+                                        min_value=0,
+                                        max_value=len(steps) - 1,
+                                        value=len(steps) - 1)
+                global_step = steps[idx]
+            elif idx_selection == "step selection":
+                global_step = st.sidebar.selectbox("Global step", steps)
+
+            st.sidebar.text("Global step: {}".format(global_step))
+            entries = df[df["gs"] == global_step]
+
+            reencode = st.sidebar.checkbox("Re-encode videos", value=False)
+            for name, fpath in zip(entries["names"], entries["fpaths"]):
+                if reencode:
+                    # correct video codec for streamlit cf https://github.com/streamlit/streamlit/issues/1580
+                    basename = '/'.join(fpath.split('/')[:-1])
+                    f_name = fpath.split('/')[-1]
+                    newpath = f'{os.path.join(basename,f_name.split(".")[0])}_.{fpath.split(".")[-1]}'
+                    rc = f'ffmpeg -y -hide_banner -loglevel error  -i {fpath} -vcodec libx264 '+newpath
+                    subprocess.run(rc,shell=True)
+                    mvc = f'mv {newpath} {fpath}'
+                    subprocess.run(mvc,shell=True)
+                st.text(name)
+                st.video(fpath)
+
+
     elif mode=="Scalars":
         csv_root = os.path.join(path, "testtube")
         csv_paths = glob.glob(os.path.join(csv_root, "**/metrics.csv"))
@@ -308,9 +396,13 @@ def main(paths):
         for name, path in zip(cfg_names, cfg_paths):
             if active_names[name]:
                 with open(path, "r") as f:
-                    cfg = yaml.load(f, Loader=yaml.CLoader)
+                    try:
+                        cfg = yaml.load(f, Loader=yaml.CLoader)
+                    except AttributeError:
+                        cfg = yaml.load(f)
                 st.text(os.path.split(path)[1])
                 st.json(cfg)
+
 
 
 if __name__ == "__main__":
