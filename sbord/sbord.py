@@ -27,7 +27,7 @@ DEFAULT_MODE=0
 
 
 
-@st.experimental_memo
+@st.cache(allow_output_mutation=True)
 def load_df(csv_path):
     return pd.read_csv(csv_path)
 
@@ -116,7 +116,6 @@ def main(paths):
         #st.sidebar.dataframe(df)
 
         for name, fpath in zip(entries["names"], entries["fpaths"]):
-
             I = Image.open(fpath)
             if ignore_alpha and np.array(I).shape[-1]==4:
                 I = Image.fromarray(np.array(I)[:, :, :3])
@@ -132,7 +131,7 @@ def main(paths):
                         mime=f"image/{ext}",
                         )
 
-    elif mode == 'Videos':
+    elif mode == "Videos":
         imagedirs = natsorted(os.listdir(os.path.join(path, "images")))
         imagedirs = [imagedir for imagedir in imagedirs if
                      len(glob.glob(os.path.join(path, 'images', imagedir, '*.mp4'))) > 0]
@@ -205,7 +204,7 @@ def main(paths):
                 st.video(fpath)
 
 
-    elif mode=="Scalars":
+    elif mode == "Scalars":
         csv_root = os.path.join(path, "testtube")
         csv_paths = glob.glob(os.path.join(csv_root, "**/metrics.csv"))
         csv_paths = natsorted(csv_paths)
@@ -279,7 +278,7 @@ def main(paths):
                 fig=px.line(data, x=x, y=k)
                 st.plotly_chart(fig)
 
-    elif mode=="Compare":
+    elif mode == "Compare":
         dfs = []
         dfs_extra = []
         st.header("Choose Variables from logs")
@@ -306,10 +305,10 @@ def main(paths):
             dfs.append(df)
             dfs_extra.append((p, st.container()))
 
-        st.header("Settings")
         fig = go.Figure()
 
-        alpha = st.slider("Smoothing", min_value=0.0, max_value=1.0, step=0.01, value=0.0)
+        st.sidebar.text("Settings")
+        st.header("Plot")
         keys = [set(df.keys()) for df in dfs]
         xaxis_keys = list(set.intersection(*keys))
         keys = list(set.union(*keys))
@@ -333,16 +332,20 @@ def main(paths):
         filter_ = re.compile(filter_)
         active_keys = [k for k in keys if active_groups[get_group(k)]]
         active_keys = [k for k in active_keys if filter_.match(k)]
+        check_all = st.sidebar.checkbox("Check all", value=False)
+        alpha = st.slider("Smoothing", min_value=0.0, max_value=1.0, step=0.01, value=0.0)
 
         for df, (p,  container) in zip(dfs, dfs_extra):
             with container:
                 name = st.text_input("Name for plot legend:", os.path.split(p)[1])
                 name_leg = f"{name}: " if len(dfs) > 1 else ""
-                for key in df.keys():
+                df_keys = natsorted(list(df.keys()))
+
+                for key in df_keys:
                     if key not in active_keys:
                         continue
 
-                    active = st.checkbox(key, value=False, key=p+key)
+                    active = st.checkbox(key, value=check_all, key=p+key)
                     if not active:
                         continue
 
@@ -350,14 +353,7 @@ def main(paths):
                     if xaxis == "contiguous":
                         x = np.arange(len(data))
                     else:
-                        if pd.api.types.is_numeric_dtype(data[xaxis]):
-                            data = data.copy() # avoid error when writing to
-                            # dataframe created by slicing an other dataframe
-                            data["counts"] = data.groupby(xaxis).cumcount()
-                            x = data.groupby(xaxis).counts.apply(lambda d: d/(d.max()+1))
-                            x = x.reset_index(level=0, drop=True) + data[xaxis]
-                        else:
-                            x = data[xaxis]
+                        x = data[xaxis]
 
                     if alpha == 0.0:
                         fig.add_trace(go.Scatter(y=data[key], x=x, mode="lines",
@@ -371,7 +367,10 @@ def main(paths):
                         fig.add_trace(go.Scatter(y=ysm, x=x, mode='lines',
                                                  name=f"{name_leg}{key} (smoothed)"))
 
-        st.header("Plot")
+        colors = st.selectbox("Colorscheme",
+                              ["default"] + [c for c in dir(px.colors.sequential) if c[0].isupper()])
+        if colors != "default":
+            fig.layout["template"]["layout"]["colorway"] = getattr(px.colors.sequential, colors)
         name = st.text_input("Name plot", "")
         config = {
           'toImageButtonOptions': {
@@ -384,7 +383,7 @@ def main(paths):
         }
         fig.update_layout(title=name, xaxis_title=xaxis, font={"size":18})
         st.plotly_chart(fig, config=config)
-    elif mode=="Configs":
+    elif mode == "Configs":
         import yaml
         cfg_root = os.path.join(path, "configs")
         cfg_paths = glob.glob(os.path.join(cfg_root, "*.yaml"))
