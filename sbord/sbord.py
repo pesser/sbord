@@ -115,10 +115,12 @@ def main(paths):
         st.sidebar.text("Global step: {}".format(global_step))
         entries = df[df["gs"]==global_step]
 
-        #st.sidebar.text("Selected")
-        #st.sidebar.dataframe(entries)
-        #st.sidebar.text("All images")
-        #st.sidebar.dataframe(df)
+        group_by = st.sidebar.radio("Group by", ["Type", "Batch id"])
+
+        if group_by == "Type":
+            entries = entries.sort_values(by=["names", "epoch", "batch"])
+        elif group_by == "Batch id":
+            entries = entries.sort_values(by=["epoch", "batch", "names"])
 
         for name, fpath in zip(entries["names"], entries["fpaths"]):
             I = Image.open(fpath)
@@ -375,7 +377,7 @@ def main(paths):
 
         endings = sorted(set([get_ending(k) for k in active_keys]))
         active_endings = dict()
-        st.sidebar.text("Endings")
+        st.sidebar.text("Frequency")
         for e in endings:
             active_endings[e] = st.sidebar.checkbox(e, value=True)
 
