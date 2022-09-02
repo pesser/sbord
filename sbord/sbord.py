@@ -28,7 +28,7 @@ DEFAULT_MODE=0
 
 
 @st.cache(allow_output_mutation=True)
-def load_df(csv_path):
+def load_df(csv_path: str) -> pd.DataFrame:
     return pd.read_csv(csv_path)
 
 
@@ -234,17 +234,20 @@ def main(paths):
         filter_ = st.sidebar.text_input("Regex Filter")
         filter_ = re.compile(filter_)
         active_keys = [k for k in df if active_groups[get_group(k)]]
-        active_keys = [k for k in active_keys if filter_.match(k)]
-        max_plots = st.sidebar.selectbox("Maximum plots per page", (10, 25,
-                                                                    50, 100))
-        pages = max(1, int(math.ceil(len(active_keys) / max_plots)))
-        page = st.sidebar.selectbox("Page", list(range(1, pages+1)))-1
-        active_keys = active_keys[page*max_plots:(page+1)*max_plots]
+        active_keys = [k for k in active_keys if filter_.search(k)]
 
-        idx_selection = st.sidebar.selectbox("Step selection", ("index input",
-                                                                "index slider",
-                                                                "step selection",
-                                                                ))
+        if st.sidebar.checkbox("Use Pages", value=False):
+            max_plots = st.sidebar.selectbox("Maximum plots per page",
+                                             (10, 25, 50, 100))
+            pages = max(1, int(math.ceil(len(active_keys) / max_plots)))
+            page = st.sidebar.selectbox("Page", list(range(1, pages+1)))-1
+            active_keys = active_keys[page*max_plots:(page+1)*max_plots]
+
+        idx_selection = st.sidebar.selectbox("Step selection",
+                                             ("index input",
+                                              "index slider",
+                                              "step selection",
+                                              ))
 
         alpha = st.sidebar.slider("Smoothing", min_value=0.0, max_value=1.0, step=0.01, value=0.4)
 
@@ -290,18 +293,30 @@ def main(paths):
                 continue
 
             st.subheader(os.path.split(p)[1])
-            if not st.checkbox("active?", value=True, key=p+"active"+"checkbox"):
+            if not st.checkbox("active?", value=True,
+                               key=p+"active"+"checkbox"):
                 continue
 
             if len(csv_paths) == 1:
-                csv_idx = 0
+                active_csv_paths = csv_paths
             else:
-                short_csv_paths = ["/".join(csv_path.split("/")[-2:]) for csv_path in csv_paths]
-                csv_path = st.radio(p, short_csv_paths, index=len(short_csv_paths)-1)
-                csv_idx = short_csv_paths.index(csv_path)
+                # this seems like a hack, but looks nice
+                _, indent = st.columns([0.02, 1]) 
+                short_csv_paths = ["/".join(csv_path.split("/")[-2:])
+                                   for csv_path in csv_paths]
+                active_csv_paths = []
+                for k, csv_p in enumerate(short_csv_paths):
+                    if indent.checkbox(csv_p, value=True,key=csv_paths[k]):
+                        active_csv_paths.append(csv_paths[k])
 
-            csv_path = csv_paths[csv_idx]
-            df = load_df(csv_path)
+                if len(active_csv_paths) == 0:
+                    continue
+
+
+            df = pd.DataFrame() 
+            for csv_p in active_csv_paths:
+                df = pd.concat((df, load_df(csv_p)), ignore_index=True)
+
             dfs.append(df)
             dfs_extra.append((p, st.container()))
 
@@ -417,4 +432,5 @@ if __name__ == "__main__":
 
     # remove trailing "/"
     paths = [p[:-len(os.sep)] if p.endswith(os.sep) else p for p in args.paths]
+    paths.sort()
     main(paths)
