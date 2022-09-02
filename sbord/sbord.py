@@ -331,13 +331,17 @@ def main(paths):
         filter_ = st.sidebar.text_input("Regex Filter")
         filter_ = re.compile(filter_)
         active_keys = [k for k in keys if active_groups[get_group(k)]]
-        active_keys = [k for k in active_keys if filter_.match(k)]
+        active_keys = [k for k in active_keys if filter_.search(k)]
         check_all = st.sidebar.checkbox("Check all", value=False)
         alpha = st.slider("Smoothing", min_value=0.0, max_value=1.0, step=0.01, value=0.0)
 
+        if alpha == 0.0:
+            line_mode = st.selectbox("Line style", ["markers", "lines"])
+
         for df, (p,  container) in zip(dfs, dfs_extra):
             with container:
-                name = st.text_input("Name for plot legend:", os.path.split(p)[1])
+                name = st.text_input("Name for plot legend:",
+                                     os.path.split(p)[1])
                 name_leg = f"{name}: " if len(dfs) > 1 else ""
                 df_keys = natsorted(list(df.keys()))
 
@@ -356,7 +360,8 @@ def main(paths):
                         x = data[xaxis]
 
                     if alpha == 0.0:
-                        fig.add_trace(go.Scatter(y=data[key], x=x, mode="lines",
+                        fig.add_trace(go.Scatter(y=data[key], x=x,
+                                                 mode=line_mode,
                                                  name=f"{name_leg}{key}"))
                     else:
                         wss = np.arange(5, 99, 2)
