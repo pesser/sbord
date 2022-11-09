@@ -312,7 +312,7 @@ def main(paths):
                 continue
 
             st.subheader(os.path.split(p)[1])
-            if not st.checkbox("active?", value=False,
+            if not st.checkbox("active?", value=(len(paths) == 1),
                                key=p+"active"+"checkbox"):
                 continue
 
