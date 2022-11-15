@@ -83,7 +83,7 @@ def main(paths):
         })
 
 
-        steps = df["gs"].unique()
+        steps = sorted(df["gs"].unique())
         idx_selection = st.sidebar.selectbox("Step selection", ("index input",
                                                                 "index slider",
                                                                 "step selection",
@@ -163,7 +163,7 @@ def main(paths):
             })
 
 
-            steps = df["gs"].unique()
+            steps = sorted(df["gs"].unique())
             idx_selection = st.sidebar.selectbox("Step selection", ("index input",
                                                                     "index slider",
                                                                     "step selection",
