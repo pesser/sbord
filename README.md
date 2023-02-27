@@ -6,16 +6,16 @@ in some quite specific and undocumented format so it is probably not that re-usa
 
 # sbord
 
-Run directly as `streamlit run sbord.py -- <path/to/log/folder>` or install and
+Run directly as `streamlit run sbord/sbord.py -- <path/to/log/folder>` or install and
 run via
 
 ```
 conda env create -f environment.yaml
 conda activate sbord
-sbord <path/to/log/folder>
+sbord <port> <path/to/log/folder>
 ```
 
-`<path/to/log/folder>` defaults to `.` if not specified.
+`<port>` defaults to 8501 and `<path/to/log/folder>` defaults to `.` if not specified.
 
 The `sbord` executable assumes you are using `miniconda3` and that it is
 located at `~/miniconda3`. If you run into problems, adjust those paths in

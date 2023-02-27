@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 PYTHON=~/miniconda3/envs/sbord/bin/python
 STREAMLIT=~/miniconda3/envs/sbord/bin/streamlit
+PORT=$1
+if [ -z "$PORT" ]; then
+    PORT=8501
+fi
+OTHER_ARGS="${@:2}"
 SRC=$($PYTHON -c "import os,inspect,sbord; print(os.path.dirname(inspect.getfile(sbord)))")
-$STREAMLIT run "${SRC}/sbord.py" -- $@
+CMD="$STREAMLIT run ${SRC}/sbord.py --server.port=${PORT} -- ${OTHER_ARGS}"
+echo "Running command to setup streamlit dashboard: ${CMD}"
+$CMD
