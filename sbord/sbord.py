@@ -26,7 +26,7 @@ regex = re.compile(r"(.*)_gs-([0-9]+)_e-([0-9]+)_b-([0-9]+).\b(png|mp4)\b")
 DEFAULT_MODE = 0
 
 
-@st.cache(allow_output_mutation=True)
+@st.cache_data()
 def load_df(csv_path: str) -> pd.DataFrame:
     return pd.read_csv(csv_path)
 
@@ -472,11 +472,18 @@ def main(paths):
                             )
                         )
 
-        colors = ["default"] + [c for c in dir(px.colors.sequential) if c[0].isupper()]
+        colors = (
+            ["default"]
+            + ["qualitative." + c for c in dir(px.colors.qualitative) if c[0].isupper()]
+            + ["diverging." + c for c in dir(px.colors.diverging) if c[0].isupper()]
+            + ["sequential." + c for c in dir(px.colors.sequential) if c[0].isupper()]
+            + ["cyclical." + c for c in dir(px.colors.cyclical) if c[0].isupper()]
+        )
         colors = st.selectbox("Colorscheme", colors)
-        if colors != "default":
+        if colors is not None and colors != "default":
+            module, color_name = colors.split(".")
             fig.layout["template"]["layout"]["colorway"] = getattr(
-                px.colors.sequential, colors
+                getattr(px.colors, module), color_name
             )
         name = st.text_input("Name plot", "")
         config = {
