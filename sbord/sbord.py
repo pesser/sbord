@@ -13,6 +13,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from natsort import natsorted
 from scipy.signal import savgol_filter
+from scipy.ndimage import uniform_filter1d
 import subprocess
 
 # currently assumes to be started with
@@ -425,9 +426,13 @@ def main(paths):
         filter_ = re.compile(filter_)
         active_keys = [k for k in active_keys if filter_.search(k)]
         check_all = st.sidebar.checkbox("Check all", value=False)
-        alpha = st.slider(
-            "Smoothing", min_value=0.0, max_value=1.0, step=0.01, value=0.0
-        )
+        col1, col2 = st.columns([1, 6])
+        with col1:
+            smooth_mode = st.radio("Smoothing mode", ["Savgol", "Running Mean"])
+        with col2:
+            alpha = st.slider(
+                "Smoothing amount", min_value=0.0, max_value=1.0, step=0.01, value=0.0
+            )
 
         line_mode = st.selectbox("Line style", ["markers", "lines"])
 
@@ -461,11 +466,22 @@ def main(paths):
                             )
                         )
                     else:
-                        wss = np.arange(5, 99, 2)
-                        ws = wss[int((len(wss) - 1) * alpha)]
-
-                        ws = min(ws, oddify(len(data) - 1))
-                        ysm = savgol_filter(data[key], ws, 3)
+                        if smooth_mode == "Savgol":
+                            wss = np.arange(5, 99, 2)
+                            ws = wss[int((len(wss) - 1) * alpha)]
+                            ws = min(ws, oddify(len(data) - 1))
+                            ysm = savgol_filter(data[key], ws, 3)
+                        elif smooth_mode == "Running Mean":
+                            size = int(len(data[key]) * alpha)
+                            ysm = uniform_filter1d(
+                                data[key],
+                                size=size,
+                                # align filter start on left:
+                                # origin=-(size//2),
+                                # align filter start on right:
+                                origin=size // 2 - 1,
+                                mode="nearest",
+                            )
                         fig.add_trace(
                             go.Scatter(
                                 y=ysm, x=x, mode="lines", name=f"{name_leg}{key}"
