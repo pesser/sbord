@@ -1,20 +1,21 @@
-import os
-import glob
-import sys
-import random
 import argparse
-import re
+import glob
 import math
+import os
+import random
+import re
+import subprocess
+import sys
+
 import numpy as np
-import streamlit as st
 import pandas as pd
-from PIL import Image
 import plotly.express as px
 import plotly.graph_objects as go
+import streamlit as st
 from natsort import natsorted
-from scipy.signal import savgol_filter
+from PIL import Image
 from scipy.ndimage import uniform_filter1d
-import subprocess
+from scipy.signal import savgol_filter
 
 # currently assumes to be started with
 # streamlit run sbord.py -- <path/to/log/folder>
