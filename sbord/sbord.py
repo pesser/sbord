@@ -250,7 +250,8 @@ def main(paths):
                                                                 "step selection",
                                                                 ))
 
-        alpha = st.sidebar.slider("Smoothing", min_value=0.0, max_value=1.0, step=0.01, value=0.4)
+        alpha = st.sidebar.slider("Smoothing", min_value=0.0, max_value=1.0,
+                                  step=0.01, value=0.25)
 
         for k in active_keys:
             data = df[df[k].notnull()]
@@ -263,14 +264,20 @@ def main(paths):
                 vanilla = False
                 try:
                     fig = go.Figure()
-                    fig.add_trace(go.Scatter(y=data[k], x=x, mode='lines', name=k, line=dict(color="lightblue") ))
+                    fig.add_trace(go.Scatter(y=data[k], x=x, mode='lines',
+                                             name=k,
+                                             line=dict(color="lightblue"),
+                                             opacity=0.2))
 
-                    wss = np.arange(5, 99, 2)
-                    ws = wss[int(len(wss)*alpha)]
+                    max_ = len(x) - 1
+                    ws = oddify(int(alpha*max_))
+                    if ws > 2:
+                        final = np.median(data[k][-ws:])
+                        ysm = np.concatenate((data[k], final*np.ones((ws,))))
+                        ysm = savgol_filter(ysm, ws, 3)
+                        ysm = ysm[:-ws]
 
-                    ws = min(ws, oddify(len(data)-1))
-                    ysm = savgol_filter(data[k], ws, 3)
-                    fig.add_trace(go.Scatter(y=ysm, x=x, mode='lines', line=dict(color="midnightblue")))
+                        fig.add_trace(go.Scatter(y=ysm, x=x, mode='lines', line=dict(color="midnightblue")))
 
                     fig.update_layout(title=k)
                     st.plotly_chart(fig)
@@ -283,6 +290,8 @@ def main(paths):
                 st.plotly_chart(fig)
 
     elif mode=="Compare":
+        alpha = st.sidebar.slider("Smoothing", min_value=0.0, max_value=1.0,
+                                  step=0.01, value=0.25)
         paths = [p for p in paths if active_paths[p]]
         dfs = []
         for p in paths:
@@ -326,6 +335,8 @@ def main(paths):
         active_keys = [k for k in keys if active_groups[get_group(k)]]
         active_keys = [k for k in active_keys if filter_.match(k)]
 
+        selection = list()
+
         st.header("Choose Variables from logs")
         fig = go.Figure()
         for i, df in enumerate(dfs):
@@ -334,15 +345,27 @@ def main(paths):
             name_leg = f"{name}: " if len(dfs) > 1 else ""
             for key in df.keys():
                 if key not in active_keys: continue
-                active = st.checkbox(key, value=False, key=paths[i]+key)
-                if not active: continue
+                if st.checkbox(key, value=False, key=paths[i]+key):
+                    selection.append((name_leg, df, key))
 
-                data = df[df[key].notnull()]
-                if xaxis == "contiguous":
-                    x = np.arange(len(data))
-                else:
-                    x = data[xaxis]
-                fig.add_trace(go.Scatter(y=data[key], x=x, mode="lines", name=f"{name_leg}{key}     "))
+        max_ = min(len(df[df[k].notnull()]) for (_, df, k) in selection) - 1
+        for (name_leg, df, key) in selection:
+            data = df[df[key].notnull()]
+            if xaxis == "contiguous":
+                x = np.arange(len(data))
+            else:
+                x = data[xaxis]
+            opacity = 0.2 if alpha > 0.0 else 1.0
+            fig.add_trace(go.Scatter(y=data[key], x=x, mode="lines",
+                                     name=f"{name_leg}{key}", opacity=opacity))
+            if alpha > 0.0:
+                ws = oddify(int(alpha*max_))
+                if ws > 3:
+                    final = np.median(data[key][-ws:])
+                    ysm = np.concatenate((data[key], final*np.ones((ws,))))
+                    ysm = savgol_filter(ysm, ws, 3)
+                    ysm = ysm[:-ws]
+                    fig.add_trace(go.Scatter(y=ysm, x=x, mode="lines", name=f"{name_leg}{key}_smooth"))
 
         st.header("Plot")
         name = st.text_input("Name plot", "")
@@ -355,7 +378,14 @@ def main(paths):
             'scale': 1 # Multiply title/legend/axis/canvas sizes by this factor
           }
         }
-        fig.update_layout(title=name, xaxis_title=xaxis, font={"size":18})
+        fig.update_layout(title=name, xaxis_title=xaxis, font={"size":18},
+                          legend={
+                              "orientation": "h",
+                              "yanchor": "bottom",
+                              "y": 1.0,
+                              "xanchor": "left",
+                              "x": 0.0,
+                          })
         st.plotly_chart(fig, config=config)
     elif mode=="Configs":
         import yaml
