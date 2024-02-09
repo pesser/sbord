@@ -39,6 +39,14 @@ def oddify(x):
     return x
 
 
+def get_csv_root(path):
+    for k in ["csvlogger", "testtube"]:
+        csv_root = os.path.join(path, k)
+        if os.path.exists(csv_root):
+            break
+    return csv_root
+
+
 def main(paths):
     st.sidebar.title("sbord")
     logdir_text = st.sidebar.empty()
@@ -98,7 +106,7 @@ def main(paths):
             }
         )
 
-        steps = df["gs"].unique()
+        steps = sorted(df["gs"].unique())
         idx_selection = st.sidebar.selectbox(
             "Step selection",
             (
@@ -191,7 +199,7 @@ def main(paths):
                 }
             )
 
-            steps = df["gs"].unique()
+            steps = sorted(df["gs"].unique())
             idx_selection = st.sidebar.selectbox(
                 "Step selection",
                 (
@@ -244,7 +252,7 @@ def main(paths):
                 st.video(fpath)
 
     elif mode == "Scalars":
-        csv_root = os.path.join(path, "testtube")
+        csv_root = get_csv_root(path)
         csv_paths = glob.glob(os.path.join(csv_root, "**/metrics.csv"))
         csv_paths = natsorted(csv_paths)
         short_csv_paths = ["/".join(csv_path.split("/")[-2:]) for csv_path in csv_paths]
@@ -345,7 +353,7 @@ def main(paths):
         dfs_extra = []
         st.header("Choose Variables from logs")
         for p in paths:
-            csv_root = os.path.join(p, "testtube")
+            csv_root = get_csv_root(p)
             csv_paths = glob.glob(os.path.join(csv_root, "**/metrics.csv"))
             csv_paths = natsorted(csv_paths)
             if len(csv_paths) == 0:
