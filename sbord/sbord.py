@@ -25,6 +25,8 @@ regex = re.compile(r"(.*)_gs-([0-9]+)_e-([0-9]+)_b-([0-9]+).\b(png|mp4)\b")
 # start displaying images (0) or scalars (1)
 DEFAULT_MODE=0
 
+DEFAULT_SMOOTHING=0.0
+
 def oddify(x):
     if x % 2 == 0:
         x = x - 1
@@ -251,7 +253,7 @@ def main(paths):
                                                                 ))
 
         alpha = st.sidebar.slider("Smoothing", min_value=0.0, max_value=1.0,
-                                  step=0.01, value=0.25)
+                                  step=0.01, value=DEFAULT_SMOOTHING)
 
         for k in active_keys:
             data = df[df[k].notnull()]
@@ -291,7 +293,7 @@ def main(paths):
 
     elif mode=="Compare":
         alpha = st.sidebar.slider("Smoothing", min_value=0.0, max_value=1.0,
-                                  step=0.01, value=0.25)
+                                  step=0.01, value=DEFAULT_SMOOTHING)
         paths = [p for p in paths if active_paths[p]]
         dfs = []
         for p in paths:
@@ -316,6 +318,8 @@ def main(paths):
         keys = list(set.union(*keys))
         xaxis_options = ["contiguous", None]+xaxis_keys
         xaxis = st.selectbox("x-axis", xaxis_options)
+
+        zero_calibrate = st.checkbox("Zero Calibrate", value=False)
 
         def get_group(k):
             ksplit = k.split("/", 1)
@@ -355,8 +359,12 @@ def main(paths):
                 x = np.arange(len(data))
             else:
                 x = data[xaxis]
+            y = data[key]
+            if zero_calibrate:
+                y = y.to_numpy()
+                y = y - y[0]
             opacity = 0.2 if alpha > 0.0 else 1.0
-            fig.add_trace(go.Scatter(y=data[key], x=x, mode="lines",
+            fig.add_trace(go.Scatter(y=y, x=x, mode="lines",
                                      name=f"{name_leg}{key}", opacity=opacity))
             if alpha > 0.0:
                 ws = oddify(int(alpha*max_))
