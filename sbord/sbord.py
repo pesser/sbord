@@ -1,19 +1,20 @@
-import os
-import glob
-import sys
-import random
 import argparse
-import re
+import glob
 import math
+import os
+import random
+import re
+import subprocess
+import sys
+
 import numpy as np
-import streamlit as st
 import pandas as pd
-from PIL import Image
 import plotly.express as px
 import plotly.graph_objects as go
+import streamlit as st
 from natsort import natsorted
+from PIL import Image
 from scipy.signal import savgol_filter
-import subprocess
 
 # currently assumes to be started with
 # streamlit run sbord.py -- <path/to/log/folder>
@@ -23,14 +24,16 @@ import subprocess
 regex = re.compile(r"(.*)_gs-([0-9]+)_e-([0-9]+)_b-([0-9]+).\b(png|mp4)\b")
 
 # start displaying images (0) or scalars (1)
-DEFAULT_MODE=0
+DEFAULT_MODE = 0
 
-DEFAULT_SMOOTHING=0.0
+DEFAULT_SMOOTHING = 0.0
+
 
 def oddify(x):
     if x % 2 == 0:
         x = x - 1
     return x
+
 
 def get_csv_root(path):
     for k in ["csvlogger", "testtube"]:
@@ -39,10 +42,15 @@ def get_csv_root(path):
             break
     return csv_root
 
+
 def main(paths):
     st.sidebar.title("sbord")
     logdir_text = st.sidebar.empty()
-    mode = st.sidebar.radio("Mode", ("Images", "Scalars", "Compare", "Configs",'Videos'), index=DEFAULT_MODE)
+    mode = st.sidebar.radio(
+        "Mode",
+        ("Images", "Scalars", "Compare", "Configs", "Videos"),
+        index=DEFAULT_MODE,
+    )
 
     if mode == "Compare":
         active_paths = dict()
@@ -52,7 +60,12 @@ def main(paths):
         if len(paths) == 1:
             path_idx = 0
         else:
-            path_idx = st.sidebar.radio("logdir", list(range(len(paths))), index=0, format_func=lambda idx: paths[idx])
+            path_idx = st.sidebar.radio(
+                "logdir",
+                list(range(len(paths))),
+                index=0,
+                format_func=lambda idx: paths[idx],
+            )
         path = paths[path_idx]
         logdir = os.path.realpath(path).split("/")
         logdir = logdir[-1] if logdir[-1] else logdir[-2]
@@ -82,48 +95,56 @@ def main(paths):
         epoch = [int(match.group(3)) for match in matches]
         batch = [int(match.group(4)) for match in matches]
 
-        df = pd.DataFrame({
-            "gs": gs,
-            "epoch": epoch,
-            "batch": batch,
-            "names": names,
-            "fnames": fnames,
-            "fpaths": fpaths,
-        })
-
+        df = pd.DataFrame(
+            {
+                "gs": gs,
+                "epoch": epoch,
+                "batch": batch,
+                "names": names,
+                "fnames": fnames,
+                "fpaths": fpaths,
+            }
+        )
 
         steps = sorted(df["gs"].unique())
-        idx_selection = st.sidebar.selectbox("Step selection", ("index input",
-                                                                "index slider",
-                                                                "step selection",
-                                                                ))
+        idx_selection = st.sidebar.selectbox(
+            "Step selection",
+            (
+                "index input",
+                "index slider",
+                "step selection",
+            ),
+        )
         if idx_selection == "index input":
-            idx = st.sidebar.number_input("Global step idx",
-                                          min_value=0,
-                                          max_value=len(steps)-1,
-                                          value=len(steps)-1)
+            idx = st.sidebar.number_input(
+                "Global step idx",
+                min_value=0,
+                max_value=len(steps) - 1,
+                value=len(steps) - 1,
+            )
             global_step = steps[idx]
         elif idx_selection == "index slider":
-            idx = st.sidebar.slider("Global step idx",
-                                    min_value=0,
-                                    max_value=len(steps)-1,
-                                    value=len(steps)-1)
+            idx = st.sidebar.slider(
+                "Global step idx",
+                min_value=0,
+                max_value=len(steps) - 1,
+                value=len(steps) - 1,
+            )
             global_step = steps[idx]
         elif idx_selection == "step selection":
             global_step = st.sidebar.selectbox("Global step", steps)
 
         st.sidebar.text("Global step: {}".format(global_step))
-        entries = df[df["gs"]==global_step]
+        entries = df[df["gs"] == global_step]
 
-        #st.sidebar.text("Selected")
-        #st.sidebar.dataframe(entries)
-        #st.sidebar.text("All images")
-        #st.sidebar.dataframe(df)
+        # st.sidebar.text("Selected")
+        # st.sidebar.dataframe(entries)
+        # st.sidebar.text("All images")
+        # st.sidebar.dataframe(df)
 
         for name, fpath in zip(entries["names"], entries["fpaths"]):
-
             I = Image.open(fpath)
-            if ignore_alpha and np.array(I).shape[-1]==4:
+            if ignore_alpha and np.array(I).shape[-1] == 4:
                 I = Image.fromarray(np.array(I)[:, :, :3])
             st.text(name)
             st.image(I, width=max_width)
@@ -131,18 +152,21 @@ def main(paths):
             ext = os.path.splitext(fpath)[1]
             with open(fpath, "rb") as f:
                 st.download_button(
-                        "Original Image",
-                        data=f,
-                        file_name=os.path.basename(fpath),
-                        mime=f"image/{ext}",
-                        )
+                    "Original Image",
+                    data=f,
+                    file_name=os.path.basename(fpath),
+                    mime=f"image/{ext}",
+                )
 
-    elif mode == 'Videos':
+    elif mode == "Videos":
         imagedirs = natsorted(os.listdir(os.path.join(path, "images")))
-        imagedirs = [imagedir for imagedir in imagedirs if
-                     len(glob.glob(os.path.join(path, 'images', imagedir, '*.mp4'))) > 0]
+        imagedirs = [
+            imagedir
+            for imagedir in imagedirs
+            if len(glob.glob(os.path.join(path, "images", imagedir, "*.mp4"))) > 0
+        ]
         if len(imagedirs) == 0:
-            st.info('No videos logged for this run')
+            st.info("No videos logged for this run")
         else:
             imagedir = st.sidebar.radio("Video directory", imagedirs)
             imagedir_idx = imagedirs.index(imagedir)
@@ -162,32 +186,41 @@ def main(paths):
             epoch = [int(match.group(3)) for match in matches]
             batch = [int(match.group(4)) for match in matches]
 
-            df = pd.DataFrame({
-                "gs": gs,
-                "epoch": epoch,
-                "batch": batch,
-                "names": names,
-                "fnames": fnames,
-                "fpaths": fpaths,
-            })
-
+            df = pd.DataFrame(
+                {
+                    "gs": gs,
+                    "epoch": epoch,
+                    "batch": batch,
+                    "names": names,
+                    "fnames": fnames,
+                    "fpaths": fpaths,
+                }
+            )
 
             steps = sorted(df["gs"].unique())
-            idx_selection = st.sidebar.selectbox("Step selection", ("index input",
-                                                                    "index slider",
-                                                                    "step selection",
-                                                                    ))
+            idx_selection = st.sidebar.selectbox(
+                "Step selection",
+                (
+                    "index input",
+                    "index slider",
+                    "step selection",
+                ),
+            )
             if idx_selection == "index input":
-                idx = st.sidebar.number_input("Global step idx",
-                                              min_value=0,
-                                              max_value=len(steps) - 1,
-                                              value=len(steps) - 1)
+                idx = st.sidebar.number_input(
+                    "Global step idx",
+                    min_value=0,
+                    max_value=len(steps) - 1,
+                    value=len(steps) - 1,
+                )
                 global_step = steps[idx]
             elif idx_selection == "index slider":
-                idx = st.sidebar.slider("Global step idx",
-                                        min_value=0,
-                                        max_value=len(steps) - 1,
-                                        value=len(steps) - 1)
+                idx = st.sidebar.slider(
+                    "Global step idx",
+                    min_value=0,
+                    max_value=len(steps) - 1,
+                    value=len(steps) - 1,
+                )
                 global_step = steps[idx]
             elif idx_selection == "step selection":
                 global_step = st.sidebar.selectbox("Global step", steps)
@@ -199,30 +232,34 @@ def main(paths):
             for name, fpath in zip(entries["names"], entries["fpaths"]):
                 if reencode:
                     # correct video codec for streamlit cf https://github.com/streamlit/streamlit/issues/1580
-                    basename = '/'.join(fpath.split('/')[:-1])
-                    f_name = fpath.split('/')[-1]
+                    basename = "/".join(fpath.split("/")[:-1])
+                    f_name = fpath.split("/")[-1]
                     newpath = f'{os.path.join(basename,f_name.split(".")[0])}_.{fpath.split(".")[-1]}'
-                    rc = f'ffmpeg -y -hide_banner -loglevel error  -i {fpath} -vcodec libx264 '+newpath
-                    subprocess.run(rc,shell=True)
-                    mvc = f'mv {newpath} {fpath}'
-                    subprocess.run(mvc,shell=True)
+                    rc = (
+                        f"ffmpeg -y -hide_banner -loglevel error  -i {fpath} -vcodec libx264 "
+                        + newpath
+                    )
+                    subprocess.run(rc, shell=True)
+                    mvc = f"mv {newpath} {fpath}"
+                    subprocess.run(mvc, shell=True)
                 st.text(name)
                 st.video(fpath)
 
-
-    elif mode=="Scalars":
+    elif mode == "Scalars":
         csv_root = get_csv_root(path)
         csv_paths = glob.glob(os.path.join(csv_root, "**/metrics.csv"))
         csv_paths = natsorted(csv_paths)
         short_csv_paths = ["/".join(csv_path.split("/")[-2:]) for csv_path in csv_paths]
-        csv_path = st.sidebar.radio("CSV file", short_csv_paths, index=len(short_csv_paths)-1)
+        csv_path = st.sidebar.radio(
+            "CSV file", short_csv_paths, index=len(short_csv_paths) - 1
+        )
         csv_idx = short_csv_paths.index(csv_path)
         csv_path = csv_paths[csv_idx]
 
         df = pd.read_csv(csv_path)
 
         keys = list(df.keys())
-        xaxis_options = ["contiguous", None]+keys
+        xaxis_options = ["contiguous", None] + keys
         xaxis = st.sidebar.selectbox("x-axis", xaxis_options)
 
         def get_group(k):
@@ -241,23 +278,31 @@ def main(paths):
         filter_ = re.compile(filter_)
         active_keys = [k for k in df if active_groups[get_group(k)]]
         active_keys = [k for k in active_keys if filter_.match(k)]
-        max_plots = st.sidebar.selectbox("Maximum plots per page", (10, 25,
-                                                                    50, 100))
+        max_plots = st.sidebar.selectbox("Maximum plots per page", (10, 25, 50, 100))
         pages = max(1, int(math.ceil(len(active_keys) / max_plots)))
-        page = st.sidebar.selectbox("Page", list(range(1, pages+1)))-1
-        active_keys = active_keys[page*max_plots:(page+1)*max_plots]
+        page = st.sidebar.selectbox("Page", list(range(1, pages + 1))) - 1
+        active_keys = active_keys[page * max_plots : (page + 1) * max_plots]
 
-        idx_selection = st.sidebar.selectbox("Step selection", ("index input",
-                                                                "index slider",
-                                                                "step selection",
-                                                                ))
+        idx_selection = st.sidebar.selectbox(
+            "Step selection",
+            (
+                "index input",
+                "index slider",
+                "step selection",
+            ),
+        )
 
-        alpha = st.sidebar.slider("Smoothing", min_value=0.0, max_value=1.0,
-                                  step=0.01, value=DEFAULT_SMOOTHING)
+        alpha = st.sidebar.slider(
+            "Smoothing",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            value=DEFAULT_SMOOTHING,
+        )
 
         for k in active_keys:
             data = df[df[k].notnull()]
-            if xaxis=="contiguous":
+            if xaxis == "contiguous":
                 x = np.arange(len(data))
             else:
                 x = xaxis
@@ -266,20 +311,33 @@ def main(paths):
                 vanilla = False
                 try:
                     fig = go.Figure()
-                    fig.add_trace(go.Scatter(y=data[k], x=x, mode='lines',
-                                             name=k,
-                                             line=dict(color="lightblue"),
-                                             opacity=0.2))
+                    fig.add_trace(
+                        go.Scatter(
+                            y=data[k],
+                            x=x,
+                            mode="lines",
+                            name=k,
+                            line=dict(color="lightblue"),
+                            opacity=0.2,
+                        )
+                    )
 
                     max_ = len(x) - 1
-                    ws = oddify(int(alpha*max_))
+                    ws = oddify(int(alpha * max_))
                     if ws > 2:
                         final = np.median(data[k][-ws:])
-                        ysm = np.concatenate((data[k], final*np.ones((ws,))))
+                        ysm = np.concatenate((data[k], final * np.ones((ws,))))
                         ysm = savgol_filter(ysm, ws, 3)
                         ysm = ysm[:-ws]
 
-                        fig.add_trace(go.Scatter(y=ysm, x=x, mode='lines', line=dict(color="midnightblue")))
+                        fig.add_trace(
+                            go.Scatter(
+                                y=ysm,
+                                x=x,
+                                mode="lines",
+                                line=dict(color="midnightblue"),
+                            )
+                        )
 
                     fig.update_layout(title=k)
                     st.plotly_chart(fig)
@@ -288,12 +346,17 @@ def main(paths):
                     print(e)
 
             if vanilla:
-                fig=px.line(data, x=x, y=k)
+                fig = px.line(data, x=x, y=k)
                 st.plotly_chart(fig)
 
-    elif mode=="Compare":
-        alpha = st.sidebar.slider("Smoothing", min_value=0.0, max_value=1.0,
-                                  step=0.01, value=DEFAULT_SMOOTHING)
+    elif mode == "Compare":
+        alpha = st.sidebar.slider(
+            "Smoothing",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            value=DEFAULT_SMOOTHING,
+        )
         paths = [p for p in paths if active_paths[p]]
         dfs = []
         for p in paths:
@@ -305,8 +368,12 @@ def main(paths):
             elif len(csv_paths) == 1:
                 csv_idx = 0
             else:
-                short_csv_paths = ["/".join(csv_path.split("/")[-2:]) for csv_path in csv_paths]
-                csv_path = st.sidebar.radio(p, short_csv_paths, index=len(short_csv_paths)-1)
+                short_csv_paths = [
+                    "/".join(csv_path.split("/")[-2:]) for csv_path in csv_paths
+                ]
+                csv_path = st.sidebar.radio(
+                    p, short_csv_paths, index=len(short_csv_paths) - 1
+                )
                 csv_idx = short_csv_paths.index(csv_path)
 
             csv_path = csv_paths[csv_idx]
@@ -316,7 +383,7 @@ def main(paths):
         keys = [set(df.keys()) for df in dfs]
         xaxis_keys = list(set.intersection(*keys))
         keys = list(set.union(*keys))
-        xaxis_options = ["contiguous", None]+xaxis_keys
+        xaxis_options = ["contiguous", None] + xaxis_keys
         xaxis = st.selectbox("x-axis", xaxis_options)
 
         zero_calibrate = st.checkbox("Zero Calibrate", value=False)
@@ -331,7 +398,7 @@ def main(paths):
         active_groups = dict()
         st.sidebar.text("Groups")
         for g in groups:
-            default = (g != "ungrouped")
+            default = g != "ungrouped"
             active_groups[g] = st.sidebar.checkbox(g, value=default)
 
         filter_ = st.sidebar.text_input("Regex Filter")
@@ -348,12 +415,13 @@ def main(paths):
             name = st.text_input("Name for plot legend:", paths[i])
             name_leg = f"{name}: " if len(dfs) > 1 else ""
             for key in df.keys():
-                if key not in active_keys: continue
-                if st.checkbox(key, value=False, key=paths[i]+key):
+                if key not in active_keys:
+                    continue
+                if st.checkbox(key, value=False, key=paths[i] + key):
                     selection.append((name_leg, df, key))
 
         max_ = min(len(df[df[k].notnull()]) for (_, df, k) in selection) - 1
-        for (name_leg, df, key) in selection:
+        for name_leg, df, key in selection:
             data = df[df[key].notnull()]
             if xaxis == "contiguous":
                 x = np.arange(len(data))
@@ -364,39 +432,51 @@ def main(paths):
                 y = y.to_numpy()
                 y = y - y[0]
             opacity = 0.2 if alpha > 0.0 else 1.0
-            fig.add_trace(go.Scatter(y=y, x=x, mode="lines",
-                                     name=f"{name_leg}{key}", opacity=opacity))
+            fig.add_trace(
+                go.Scatter(
+                    y=y, x=x, mode="lines", name=f"{name_leg}{key}", opacity=opacity
+                )
+            )
             if alpha > 0.0:
-                ws = oddify(int(alpha*max_))
+                ws = oddify(int(alpha * max_))
                 if ws > 3:
                     final = np.median(data[key][-ws:])
-                    ysm = np.concatenate((data[key], final*np.ones((ws,))))
+                    ysm = np.concatenate((data[key], final * np.ones((ws,))))
                     ysm = savgol_filter(ysm, ws, 3)
                     ysm = ysm[:-ws]
-                    fig.add_trace(go.Scatter(y=ysm, x=x, mode="lines", name=f"{name_leg}{key}_smooth"))
+                    fig.add_trace(
+                        go.Scatter(
+                            y=ysm, x=x, mode="lines", name=f"{name_leg}{key}_smooth"
+                        )
+                    )
 
         st.header("Plot")
         name = st.text_input("Name plot", "")
         config = {
-          'toImageButtonOptions': {
-            'format': 'png', # one of png, svg, jpeg, webp
-            'filename': name if name else 'plot',
-            'height': 1000,
-            'width': 1400,
-            'scale': 1 # Multiply title/legend/axis/canvas sizes by this factor
-          }
+            "toImageButtonOptions": {
+                "format": "png",  # one of png, svg, jpeg, webp
+                "filename": name if name else "plot",
+                "height": 1000,
+                "width": 1400,
+                "scale": 1,  # Multiply title/legend/axis/canvas sizes by this factor
+            }
         }
-        fig.update_layout(title=name, xaxis_title=xaxis, font={"size":18},
-                          legend={
-                              "orientation": "h",
-                              "yanchor": "bottom",
-                              "y": 1.0,
-                              "xanchor": "left",
-                              "x": 0.0,
-                          })
+        fig.update_layout(
+            title=name,
+            xaxis_title=xaxis,
+            font={"size": 18},
+            legend={
+                "orientation": "h",
+                "yanchor": "bottom",
+                "y": 1.0,
+                "xanchor": "left",
+                "x": 0.0,
+            },
+        )
         st.plotly_chart(fig, config=config)
-    elif mode=="Configs":
+    elif mode == "Configs":
         import yaml
+
         cfg_root = os.path.join(path, "configs")
         cfg_paths = glob.glob(os.path.join(cfg_root, "*.yaml"))
         cfg_paths = natsorted(cfg_paths)[::-1]
@@ -415,11 +495,12 @@ def main(paths):
                 st.json(cfg)
 
 
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='The streamlit based alternative to tensorboard.')
+    parser = argparse.ArgumentParser(
+        description="The streamlit based alternative to tensorboard."
+    )
 
-    parser.add_argument('paths', default=".", nargs="*")
+    parser.add_argument("paths", default=".", nargs="*")
     args = parser.parse_args()
 
     main(args.paths)
